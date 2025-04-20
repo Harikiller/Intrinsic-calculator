@@ -5,32 +5,45 @@ st.set_page_config(page_title="Intrinsic Value Calculator", layout="centered")
 st.title("💹 Intrinsic Value of Share Price Calculator")
 company_name = st.text_input("Enter Company Name")
 
-st.header("📊 Input Financial Data")
+# Section 1: Cash Flow
+with st.expander("💵 Cash Flow"):
+    st.subheader("💵 Operating Cash Flow & Capital Expenditure")
+    opc = st.number_input('Operating Cash - Present Year', value=0.0)
+    opc1 = st.number_input('Operating Cash - Last Year', value=0.0)
+    opc2 = st.number_input('Operating Cash - Year Before Last', value=0.0)
 
-opc = st.number_input('Enter Operating Cash for Present Year', value=0.0)
-opc1 = st.number_input('Enter Operating Cash for Last Year', value=0.0)
-opc2 = st.number_input('Enter Operating Cash for Last to Last Year', value=0.0)
+    ope = st.number_input('Capital Expenditure - Present Year', value=0.0)
+    ope1 = st.number_input('Capital Expenditure - Last Year', value=0.0)
+    ope2 = st.number_input('Capital Expenditure - Year Before Last', value=0.0)
 
-ope = st.number_input('Enter Capital Expenditure for Present Year', value=0.0)
-ope1 = st.number_input('Enter Capital Expenditure for Last Year', value=0.0)
-ope2 = st.number_input('Enter Capital Expenditure for Last to Last Year', value=0.0)
+# Section 2: Growth Assumptions
+with st.expander("📈 Growth Assumptions"):
+    st.subheader("📈 Growth & Discount Rates")
+    gr = st.number_input('Growth Rate for Next 5 Years (%)', value=0.0)
+    gr1 = st.number_input('Growth Rate for Years 6-10 (%)', value=0.0)
+    tr = st.number_input('Terminal Growth Rate (%)', value=0.0)
+    dr = st.number_input('Discount Rate (%)', value=0.0)
 
-gr = st.number_input('Enter Growth Rate for Next 5 Years (%)', value=0.0)
-gr1 = st.number_input('Enter Growth Rate for 6-10 Years (%)', value=0.0)
-tr = st.number_input('Enter Terminal Growth Rate (%)', value=0.0)
-dr = st.number_input('Enter Discount Rate for Terminal Growth (%)', value=0.0)
+# Section 3: Financial Position
+with st.expander("🏦 Financial Position"):
+    st.subheader("💰 Cash, Debt & Shares Info")
+    dv = st.number_input('Total Debt (Current Year)', value=0.0)
+    cb = st.number_input('Cash & Cash Equivalents', value=0.0)
+    os = st.number_input('Outstanding Shares', value=1.0, help="Must be greater than 0")
 
-dv = st.number_input('Enter Current Year Debt', value=0.0)
-cb = st.number_input('Enter Current Cash & Cash Balance', value=0.0)
-os = st.number_input('Enter Outstanding Shares', value=1.0)
-
+# Calculate Button
 if st.button("📈 Calculate Intrinsic Value"):
+    # Input validations
+    if os <= 0:
+        st.error("Outstanding Shares must be greater than 0.")
+        st.stop()
+    if dr <= tr:
+        st.error("Discount Rate must be greater than Terminal Growth Rate.")
+        st.stop()
+
     # Free cash flows
-    aopc1 = opc - ope
-    aopc2 = opc1 - ope1
-    aopc3 = opc2 - ope2
-    aopc = aopc1 + aopc2 + aopc3
-    cashflow = aopc / 3
+    free_cash_flows = [(opc - ope), (opc1 - ope1), (opc2 - ope2)]
+    cashflow = sum(free_cash_flows) / len(free_cash_flows)
 
     # Growth rates
     grp = gr / 100
@@ -39,42 +52,26 @@ if st.button("📈 Calculate Intrinsic Value"):
     drp = dr / 100
 
     # Future values
-    oppcost = 1 + grp
-    toppcost = oppcost ** 5
-    FV5years = cashflow * toppcost
-
-    oppcost1 = 1 + grp1
-    toppcost1 = oppcost1 ** 5
-    FV6to10years = FV5years * toppcost1
+    FV5years = cashflow * ((1 + grp) ** 5)
+    FV6to10years = FV5years * ((1 + grp1) ** 5)
 
     # Terminal value
-    trdr = drp - trp
-    trr = 1 + trp
-    trrdr = trr / trdr
-    terminalvalue = FV6to10years * trrdr
+    terminalvalue = FV6to10years * ((1 + trp) / (drp - trp))
 
-    # FV for 10 years
-    FV = [cashflow * (oppcost ** i) if i <= 5 else FV5years * (oppcost1 ** (i - 5)) for i in range(1, 11)]
+    # Projected cash flows
+    FV = [cashflow * ((1 + grp) ** i) if i < 5 else FV5years * ((1 + grp1) ** (i - 5)) for i in range(10)]
 
-    # Present values
-    drprcosts = [(1 + drp) ** i for i in range(1, 11)]
-    PV = [FV[i] / drprcosts[i] for i in range(10)]
-
+    # Discounted to present value
+    PV = [FV[i] / ((1 + drp) ** (i + 1)) for i in range(10)]
     netpv = sum(PV)
-
-    # Terminal value PV
-    drcost = (1 + drp) ** 10
-    pvtv = terminalvalue / drcost
-
+    pvtv = terminalvalue / ((1 + drp) ** 10)
     sumofpresentvalues = netpv + pvtv
 
     # Net debt
     netdebt = dv - cb
-
-    # Total present value
     totalpresentvalue = sumofpresentvalues - netdebt
 
-    # Share prices
+    # Share price
     shareprice = totalpresentvalue / os
     uppershareprice = shareprice * 1.1
     lowershareprice = shareprice * 0.9
