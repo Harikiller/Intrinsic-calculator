@@ -51,23 +51,18 @@ if st.button("📈 Calculate Intrinsic Value"):
     trp = tr / 100
     drp = dr / 100
 
-    # Manually compounding each year (for 10 years)
-    FV = cashflow
-    for year in range(1, 11):  # 10 years of compounding
-        if year <= 5:
-            FV *= (1 + grp)  # Apply growth rate for years 1-5
-        else:
-            FV *= (1 + grp1)  # Apply growth rate for years 6-10
-
-    # Future value for the next 10 years (with compounding)
-    FV5years = FV  # This is the final future value for 10 years after growth
+    # Future values
+    FV5years = cashflow * ((1 + grp) ** 5)
     FV6to10years = FV5years * ((1 + grp1) ** 5)
 
     # Terminal value
     terminalvalue = FV6to10years * ((1 + trp) / (drp - trp))
 
+    # Projected cash flows
+    FV = [cashflow * ((1 + grp) ** i) if i < 5 else FV5years * ((1 + grp1) ** (i - 5)) for i in range(10)]
+
     # Discounted to present value
-    PV = [FV / ((1 + drp) ** (i + 1)) for i in range(10)]  # Discount each year's value
+    PV = [FV[i] / ((1 + drp) ** (i + 1)) for i in range(10)]
     netpv = sum(PV)
     pvtv = terminalvalue / ((1 + drp) ** 10)
     sumofpresentvalues = netpv + pvtv
